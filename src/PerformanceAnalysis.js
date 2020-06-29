@@ -16,13 +16,17 @@ export class PerformanceAnalysis extends LitElement {
       parsedData: { type : Array }
     };
   }
-  
+
   connectedCallback() {
     super.connectedCallback();
     this.showHistogram = false;
-    this.numBins = 3;
     this.height = 400;
     this.width = 300;
+  }
+
+  setDefaultSetting() {
+    this.numBins = 3;
+    this.tempBinNum = 3;
     this.display = { TP: true, FP: true, TN: true, FN: true };
     this.minScore = 0;
     this.maxScore = 1; 
@@ -122,17 +126,15 @@ export class PerformanceAnalysis extends LitElement {
     this.prediction = this.parsedData.slice(1).map(row => row[predictionIndex]);
     this.ids = this.parsedData.slice(1).map(row => row[idIndex]);
 
-    // set histogram data 
-    let histogramData = this.initializeHistogramData();
-    histogramData = this.calculateBinCounts(histogramData);
-    this.histogramData = this.calculatePreviousSum(histogramData);
+    this.setDefaultSetting();
+    this.showHistogram = true;
   }
 
   get parsedData() {
     return this._parsedData;
   }
 
-  set histogramData(data) {
+  /*set histogramData(data) {
     this._histogramData = data;
     this.xMax = Math.max(this.calculateMaxCount('tp'), this.calculateMaxCount('tn'));
     console.log(this.xMax);
@@ -148,16 +150,53 @@ export class PerformanceAnalysis extends LitElement {
     this.colorScale = d3.scaleOrdinal()
                         .range(["#00649b", "#bc4577", "#ff7e5a", "#b2bae4", "#a97856", "#a3a6af", "#48322e", "#ad8a85"])
                         .domain(this.classNames)
-    this.showHistogram = true;
-  }
+    
+  } */
 
   get histogramData() {
-    return this._histogramData;
+    let histogramData = this.initializeHistogramData();
+    histogramData = this.calculateBinCounts(histogramData);
+    return this.calculatePreviousSum(histogramData);
+  }
+
+  get colorScale() {
+    return d3.scaleOrdinal()
+          .range(["#00649b", "#bc4577", "#ff7e5a", "#b2bae4", "#a97856", "#a3a6af", "#48322e", "#ad8a85"])
+          .domain(this.classNames);
+  }
+
+  get yScale() {
+    return d3.scaleBand()
+            .domain(Array.from(Array(this.numBins).keys()).reverse() )
+            .rangeRound([0, this.height])
+            .padding(0.1);
+  }
+
+  get xMax() {
+    return Math.max(this.calculateMaxCount('tp'), this.calculateMaxCount('tn'));
+  }
+
+  get xScale() {
+    return d3.scaleLinear()
+            .domain([0, 2* this.xMax])
+            .rangeRound([0, this.width])
+  }
+
+  updateHistograms(event) {
+    console.log(this.shadowRoot.getElementById("numBins").value);
+    this.numBins = parseInt(this.shadowRoot.getElementById("numBins").value);
+    this.display = { 
+      TP: this.shadowRoot.getElementById("tp").checked,
+      FP: this.shadowRoot.getElementById("fp").checked,
+      TN: this.shadowRoot.getElementById("tn").checked,
+      FN: this.shadowRoot.getElementById("fn").checked,
+    }
   }
 
   initializeHistogramData() {
+    console.log(this.numBins)
     let binNums = [...Array(this.numBins).keys()];  
-
+    
     let histogramData = this.classNames.map((name, i) => {
       return {classNum: i, className: name, data: []}
     }) 
@@ -274,8 +313,21 @@ export class PerformanceAnalysis extends LitElement {
     if (this.showHistogram) {
       console.log(this.histogramData)
       return html`
+      <label>Number of Bins: </label>
+      <input id="numBins" type="text" .value=${this.numBins}></input>
+      <label>Display Classification: </label>
+      <input type="checkbox" id="tp" name="tp" ?checked=${this.display.TP}></input>
+      <label for="tp">TP</label>
+      <input type="checkbox" id="fp" name="fp" ?checked=${this.display.FP}></input>
+      <label for="tp">FP</label>
+      <input type="checkbox" id="tn" name="tn" ?checked=${this.display.TN}></input>
+      <label for="tp">TN</label>
+      <input type="checkbox" id="fn" name="fn" ?checked=${this.display.FN}></input>
+      <label for="tp">FN</label>
+      <button @click=${this.updateHistograms}>Apply</button>
         ${this.histogramData.map(
           d => html`
+            
             <proba-histogram
               .data=${d.data}
               .width=${this.width}
