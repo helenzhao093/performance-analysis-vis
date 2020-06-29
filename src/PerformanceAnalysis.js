@@ -12,15 +12,15 @@ export class PerformanceAnalysis extends LitElement {
       minScore : { type: Number },
       maxScore : { type: Number },
       showHistogram: { type: Boolean },
-      histogramData : { type : Array }
+      histogramData : { type : Array },
+      parsedData: { type : Array }
     };
   }
-
+  
   connectedCallback() {
     super.connectedCallback();
-    console.log('connected');
     this.showHistogram = false;
-    this.numBins = 1;
+    this.numBins = 3;
     this.height = 400;
     this.width = 300;
     this.display = { TP: true, FP: true, TN: true, FN: true };
@@ -83,12 +83,85 @@ export class PerformanceAnalysis extends LitElement {
     ]
   }
 
+  set parsedData(data) {
+    let numColumns = data[0].length;
+    this._parsedData = data.filter(row => row.length === numColumns); // remove extraneous columns
+
+    let header = this.parsedData[0];
+    let classNames = [];
+    let probaIndexes = new Set(); 
+    let classIndexToValueMap = {}; 
+    let classValueToIndexMap = {};
+    let targetIndex;
+    let predictionIndex; 
+    let idIndex; 
+    let classIndex = 0
+    header.forEach((name,index)=> {
+      name = name.toLowerCase();
+      if (name === 'predicted') {
+        predictionIndex = index;
+      } else if (name === 'target') {
+        targetIndex = index; 
+      } else if (name === 'id') {
+        idIndex = index; 
+      } else {
+        classNames.push(name);
+        probaIndexes.add(index);
+        classIndexToValueMap[classIndex] = name;
+        classValueToIndexMap[name] = classIndex;
+        classIndex += 1;
+      }
+    });
+      
+    // set class name, probability, target, prediction arrays
+    this.classNames = classNames;
+    this.classIndexToValueMap = classIndexToValueMap;
+    this.classValueToIndexMap = classValueToIndexMap;
+    this.proba = this.parsedData.slice(1).map(row => row.filter((_, i) => probaIndexes.has(i)));
+    this.target = this.parsedData.slice(1).map(row => row[targetIndex]);
+    this.prediction = this.parsedData.slice(1).map(row => row[predictionIndex]);
+    this.ids = this.parsedData.slice(1).map(row => row[idIndex]);
+
+    // set histogram data 
+    let histogramData = this.initializeHistogramData();
+    histogramData = this.calculateBinCounts(histogramData);
+    this.histogramData = this.calculatePreviousSum(histogramData);
+  }
+
+  get parsedData() {
+    return this._parsedData;
+  }
+
+  set histogramData(data) {
+    this._histogramData = data;
+    this.xMax = Math.max(this.calculateMaxCount('tp'), this.calculateMaxCount('tn'));
+    console.log(this.xMax);
+    this.xScale = d3.scaleLinear()
+                    .domain([0, 2*this.xMax])
+                    .rangeRound([0, this.width])
+
+    this.yScale = d3.scaleBand()
+                    .domain(Array.from(Array(this.numBins).keys()).reverse() )
+                    .rangeRound([0, this.height])
+                    .padding(0.1)
+
+    this.colorScale = d3.scaleOrdinal()
+                        .range(["#00649b", "#bc4577", "#ff7e5a", "#b2bae4", "#a97856", "#a3a6af", "#48322e", "#ad8a85"])
+                        .domain(this.classNames)
+    this.showHistogram = true;
+  }
+
+  get histogramData() {
+    return this._histogramData;
+  }
+
   initializeHistogramData() {
-    let histogramData = this.proba[0].map((d, i) => {
-      return {classNum: i, className: "class" + i, data: []}
-    })
-    this.classNames = this.proba[0].map((_, i) => { return 'class' + i } )
     let binNums = [...Array(this.numBins).keys()];  
+
+    let histogramData = this.classNames.map((name, i) => {
+      return {classNum: i, className: name, data: []}
+    }) 
+    
     histogramData.forEach(histogram => {
       // add tp, fp, tn, fn
       binNums.forEach(binNum => {
@@ -127,15 +200,16 @@ export class PerformanceAnalysis extends LitElement {
       let target = this.target[dataIndex];
       scores.forEach((score, classIndex) => {
         let binNum = this.getBinNumber(score);
-        if (target === classIndex) {
-          if (this.display.TP && predicted === target) { // tp 
+        let currentClass = this.classIndexToValueMap[classIndex];
+        if (target == currentClass) {
+          if (this.display.TP && predicted == currentClass) { // tp 
             histogramData[classIndex].data[binNum].tp[0].count += 1;
           } else if (this.display.FN) { // fn 
-            histogramData[classIndex].data[binNum].fn[predicted].count += 1;
+            histogramData[classIndex].data[binNum].fn[this.classValueToIndexMap[predicted]].count += 1;
           }
         } else {
-          if (this.display.FP && predicted === classIndex) { // fp 
-            histogramData[classIndex].data[binNum].fp[target].count += 1;
+          if (this.display.FP && predicted == currentClass) { // fp 
+            histogramData[classIndex].data[binNum].fp[this.classValueToIndexMap[target]].count += 1;
           } else if (this.display.TN) { // tn
             histogramData[classIndex].data[binNum].tn[0].count += 1;
           }
@@ -163,11 +237,6 @@ export class PerformanceAnalysis extends LitElement {
   }
 
   calculateMaxCount(classification) {
-    /*return Math.max(...this.histogramData.map(histogram => {
-      return Math.max(...histogram.data.map(bin => {
-        return bin[classification][0].count + bin[classification][0].previousSum
-      }))
-    }))*/
     return d3.max(this.histogramData.map(function(histogram){ // max in each class
       return d3.max(histogram.data.map(function(bin){
         return bin[classification][0].count + bin[classification][0].previousSum
@@ -175,46 +244,14 @@ export class PerformanceAnalysis extends LitElement {
     }))
   }
 
-  getGraphFunctions() {    
-    this.xMax = Math.max(this.calculateMaxCount('tp'), this.calculateMaxCount('tn'));
-    console.log(this.xMax);
-    this.xScale = d3.scaleLinear()
-                    .domain([0, 2*this.xMax])
-                    .rangeRound([0, this.width])
-
-    this.yScale = d3.scaleBand()
-                    .domain(Array.from(Array(this.numBins).keys()).reverse() )
-                    .rangeRound([0, this.height])
-                    .padding(0.1)
-
-    this.colorScale = d3.scaleOrdinal()
-                        .range(["#00649b", "#bc4577", "#ff7e5a", "#b2bae4", "#a97856", "#a3a6af", "#48322e", "#ad8a85"])
-                        .domain(this.classNames)
-  }
-
-  constructHistogramData() {
-    let histogramData = this.initializeHistogramData();
-    histogramData = this.calculateBinCounts(histogramData);
-    histogramData = this.calculatePreviousSum(histogramData);
-    this.histogramData = [...histogramData];
-    console.log(this.histogramData);
-  }
-
   async readFile(file) {
     return new Promise((resolve, reject) => {
-      let parsedData = []
       if (file) {
         var reader = new FileReader();
         reader.readAsText(file, "UTF-8");
         reader.onload = function (e) {
           let results = e.target.result;
-          
-          results.split('\n').forEach(l => {
-            let parsed = JSON.parse('[' + l + ']');
-            if (parsed && parsed.length > 0) {
-              parsedData.push(parsed);
-            }
-          })
+          let parsedData = results.split('\n').map(l => l.split(','));
           console.log(parsedData);
           resolve(parsedData);
         }
@@ -229,20 +266,8 @@ export class PerformanceAnalysis extends LitElement {
   }
 
   async readData(event) {
-    let targetFile = this.shadowRoot.getElementById('targetFile').files[0];
-    this.target = await this.readFile(targetFile)
-    this.target = this.target.map(d => d[0]);
-
-    let predictionFile = this.shadowRoot.getElementById('predictionFile').files[0];
-    this.prediction = await this.readFile(predictionFile);
-    this.prediction = this.prediction.map(d => d[0]);
-
-    let probaFile = this.shadowRoot.getElementById('probaFile').files[0];
-    this.proba = await this.readFile(probaFile);
-
-    this.constructHistogramData();
-    this.getGraphFunctions();
-    this.showHistogram = true;
+    let datafile = this.shadowRoot.getElementById('dataFile').files[0];
+    this.parsedData = await this.readFile(datafile)
   }
 
   render() {
@@ -265,17 +290,10 @@ export class PerformanceAnalysis extends LitElement {
     `;
     } else {
       return html`
-        <label>Target</label>
-        <input id="targetFile" type="file"></input>
-        <label>Prediction</label>
-        <input id="predictionFile" type="file"></input>
-        <label>Probability Scores</label>
-        <input id="probaFile" type="file"></input>
+        <label>Data File</label>
+        <input id="dataFile" type="file"></input>
         <button @click=${this.readData}>Generate</button>
       `
     }
-    
-    
-    /**/
   }
 }
