@@ -1,9 +1,4 @@
-import { LitElement, html, css } from 'lit-element';
-/*
-probabilities
-predicted class 
-actual class
-*/
+import { LitElement, html, css } from 'https://unpkg.com/lit-element@2.1.0/lit-element.js?module';
 
 function positiveBar(className, barData, offset, binIndex, xScale, yScale, colorScale) {
     return html`
