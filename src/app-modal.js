@@ -22,6 +22,14 @@ class AppModal extends LitElement {
         this.showModal = !this.showModal;
     }
 
+    cancel() {
+        this.showModal = false;
+    }
+
+    handleApply() {
+        this.dispatchEvent(new CustomEvent("modal-apply"));
+    }
+
     render() {
         return html`
         <div class="${this.modalClass}">
@@ -33,7 +41,8 @@ class AppModal extends LitElement {
                     <slot name="modal-body-content">None</slot>
                 </div>
                 <footer class="modal-footer">
-                    <slot name="footer-content"></slot>
+                    <button @click=${this.cancel}>Cancel</button>
+                    <button @click=${this.handleApply}>Okay</button>
                 </footer>
             </div>
         </div>

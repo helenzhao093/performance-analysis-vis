@@ -56,6 +56,7 @@ function binTemplate(binData, index, mid, lineStrokeWidth, xScale, yScale, color
 class ProbaHistogram extends LitElement {
     static get properties() {
         return {
+            className: { type : String },
             data: { type: Array },
             height: { type : Number },
             width: { type: Number },
@@ -70,6 +71,7 @@ class ProbaHistogram extends LitElement {
     connectedCallback() {
         super.connectedCallback();
         this.lineStrokeWidth = 2;
+        console.log(this.className)
     }
 
     render() {
@@ -80,7 +82,7 @@ class ProbaHistogram extends LitElement {
             width=${this.width}>
 
             <line x1=${this.xScale(this.xMax)} x2=${this.xScale(this.xMax)} y2=${this.height} 
-                style="stroke:black;stroke-width:${this.lineStrokeWidth};stroke-opacity:0.5"> 
+                style="stroke:${this.colorScale(this.className)};stroke-width:${this.lineStrokeWidth};stroke-opacity:0.75"> 
             </line>
 
             ${this.data.map( 

@@ -48,27 +48,35 @@ class AppSettings extends LitElement {
         }
     }
 
-    errorCheck(bins, minScore, maxScore) {
-        let valid = true; 
-        valid = valid && this.toggleErrorClass(bins < 0 || bins > 20, "form-bins");
-        valid = valid && this.toggleErrorClass(minScore < 0 || minScore > 1, "form-min-score");
-        valid = valid && this.toggleErrorClass(maxScore < 0 || maxScore > 1, "form-max-score");
+    errorCheck(bins, probaScores, formIds) {
+        let valid = this.toggleErrorClass(bins < 0 || bins > 20, "form-bins");
+        for (let i = 0; i < probaScores.length; i++) {
+            valid = valid && this.toggleErrorClass(probaScores[i] < 0 || probaScores[i] > 1, formIds[i]);
+        }
         return valid;
     }
 
     updateSettings() {
         let numBins = parseInt(this.shadowRoot.getElementById("numBins").value);
         let display = { 
-            TP: this.shadowRoot.getElementById("tp").checked,
-            FP: this.shadowRoot.getElementById("fp").checked,
-            TN: this.shadowRoot.getElementById("tn").checked,
-            FN: this.shadowRoot.getElementById("fn").checked,
+            TP: { 
+                show: this.shadowRoot.getElementById("tp").checked, 
+                range:  this.shadowRoot.getElementById("tp-range").value
+            },
+            FP: { show: this.shadowRoot.getElementById("fp").checked },
+            TN: { 
+                show: this.shadowRoot.getElementById("tn").checked,
+                range:  this.shadowRoot.getElementById("tn-range").value
+            },
+            FN: { show: this.shadowRoot.getElementById("fn").checked }
         }
         let minScore = parseFloat(this.shadowRoot.getElementById("minScore").value);
         let maxScore = parseFloat(this.shadowRoot.getElementById("maxScore").value);
 
         // add error check 
-        if(this.errorCheck(numBins, minScore, maxScore)) {
+        if(this.errorCheck(numBins, 
+            [minScore, maxScore, display.TP.range, display.TN.range], 
+            ["form-min-score", "form-max-score", "form-TP", "form-TN"])) {
             this.dispatchEvent(new CustomEvent("update-settings", {
                 detail : {
                     numBins: numBins,
@@ -83,36 +91,40 @@ class AppSettings extends LitElement {
 
     render() {
         return html`
-        <app-modal .showModal=${this.showModal}>
+        <app-modal .showModal=${this.showModal} @modal-apply=${this.updateSettings}>
             <span slot="header-content">Settings</span>
-            <div slot="modal-body-content">
-                <div class="form-element" id="form-bins">
-                    <label>Number of Bins: </label>
-                    <input id="numBins" type="text" .value=${this.numBins}></input>
-                </div>
-                <div class="form-element" id="form-classification-display">
-                    <label>Classification: </label>
-                    <input type="checkbox" id="tp" name="tp" ?checked=${this.display.TP}></input>
-                    <label for="tp">TP</label>
-                    <input type="checkbox" id="fp" name="fp" ?checked=${this.display.FP}></input>
-                    <label for="tp">FP</label>
-                    <input type="checkbox" id="tn" name="tn" ?checked=${this.display.TN}></input>
-                    <label for="tp">TN</label>
-                    <input type="checkbox" id="fn" name="fn" ?checked=${this.display.FN}></input>
-                    <label for="tp">FN</label>
-                </div>
-                <div class="form-element" id="form-min-score">
-                    <label>Minimum Score: </label>
-                    <input id="minScore" type="text" .value=${this.minScore}></input>
-                </div>
-                <div class="form-element" id="form-max-score">
-                    <label>Maximum Score: </label>
-                    <input id="maxScore" type="text" .value=${this.maxScore}></input>
-                </div>
+            <div slot="modal-body-content" class="form-element" id="form-bins">
+                <label>Number of Bins: </label>
+                <input id="numBins" type="text" .value=${this.numBins}></input>
             </div>
-            <div slot="footer-content">
-                <button @click=${this.cancel}>Cancel</button>
-                <button @click=${this.updateSettings}>Apply</button>
+            <div slot="modal-body-content" class="form-element" id="form-classification-display">
+                <label>Classification: </label>
+                
+                <input type="checkbox" id="fp" name="fp" ?checked=${this.display.FP.show}></input>
+                <label for="tp">FP</label>
+                
+                <input type="checkbox" id="fn" name="fn" ?checked=${this.display.FN.show}></input>
+                <label for="tp">FN</label>
+            </div>
+            <div slot="modal-body-content" class="form-element" id="form-TP">
+                <input type="checkbox" id="tp" name="tp" ?checked=${this.display.TP.show}></input>
+                <label for="tp">TP</label>
+                <label>Max Score</label>
+                <input type="text" id="tp-range" .value=${this.display.TP.range}></input>
+            </div>
+            <div slot="modal-body-content" class="form-element" id="form-TN">
+                <input type="checkbox" id="tn" name="tn" ?checked=${this.display.TN}></input>
+                <label for="tp">TN</label>
+                <label>Min Score</label>
+                <input type="text" id="tn-range" .value=${this.display.TN.range}></input>
+            </div>
+            <div slot="modal-body-content" class="form-element" id="form-min-score">
+                <label>Minimum Score: </label>
+                <input id="minScore" type="text" .value=${this.minScore}></input>
+            </div>
+            <div slot="modal-body-content" class="form-element" id="form-max-score">
+                <label>Maximum Score: </label>
+                <input id="maxScore" type="text" .value=${this.maxScore}></input>
             </div>
         </app-modal>
         `

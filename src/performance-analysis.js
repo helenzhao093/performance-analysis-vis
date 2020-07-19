@@ -8,7 +8,7 @@ class PerformanceAnalysis extends LitElement {
       title: { type: String },
       page: { type: String },
       numBins : { type: Number },
-      display : { type: Object },  
+      display : { type: Object },
       minScore : { type: Number },
       maxScore : { type: Number },
       histogramData : { type : Array },
@@ -40,15 +40,6 @@ class PerformanceAnalysis extends LitElement {
     super.connectedCallback();
     this.height = 400;
     this.width = 300;
-    this.setDefaultSetting();
-  }
-
-  setDefaultSetting() {
-    this.numBins = 3;
-    this.tempBinNum = 3;
-    this.display = { TP: true, FP: true, TN: true, FN: true };
-    this.minScore = 0;
-    this.maxScore = 1; 
   }
 
   fetchData() {
@@ -144,32 +135,11 @@ class PerformanceAnalysis extends LitElement {
     this.target = this.parsedData.slice(1).map(row => row[targetIndex]);
     this.prediction = this.parsedData.slice(1).map(row => row[predictionIndex]);
     this.ids = this.parsedData.slice(1).map(row => row[idIndex]);
-
-    this.setDefaultSetting();
   }
 
   get parsedData() {
     return this._parsedData;
   }
-
-  /*set histogramData(data) {
-    this._histogramData = data;
-    this.xMax = Math.max(this.calculateMaxCount('tp'), this.calculateMaxCount('tn'));
-    console.log(this.xMax);
-    this.xScale = d3.scaleLinear()
-                    .domain([0, 2*this.xMax])
-                    .rangeRound([0, this.width])
-
-    this.yScale = d3.scaleBand()
-                    .domain(Array.from(Array(this.numBins).keys()).reverse() )
-                    .rangeRound([0, this.height])
-                    .padding(0.1)
-
-    this.colorScale = d3.scaleOrdinal()
-                        .range(["#00649b", "#bc4577", "#ff7e5a", "#b2bae4", "#a97856", "#a3a6af", "#48322e", "#ad8a85"])
-                        .domain(this.classNames)
-    
-  } */
 
   get histogramData() {
     let histogramData = this.initializeHistogramData();
@@ -199,17 +169,6 @@ class PerformanceAnalysis extends LitElement {
             .domain([0, 2* this.xMax])
             .rangeRound([0, this.width])
   }
-
-  /*updateHistograms(event) {
-    console.log(this.shadowRoot.getElementById("numBins").value);
-    this.numBins = parseInt(this.shadowRoot.getElementById("numBins").value);
-    this.display = { 
-      TP: this.shadowRoot.getElementById("tp").checked,
-      FP: this.shadowRoot.getElementById("fp").checked,
-      TN: this.shadowRoot.getElementById("tn").checked,
-      FN: this.shadowRoot.getElementById("fn").checked,
-    }
-  }*/
 
   initializeHistogramData() {
     console.log(this.numBins)
@@ -259,15 +218,15 @@ class PerformanceAnalysis extends LitElement {
         let binNum = this.getBinNumber(score);
         let currentClass = this.classIndexToValueMap[classIndex];
         if (target == currentClass) {
-          if (this.display.TP && predicted == currentClass) { // tp 
+          if (this.display.TP.show && score <= this.display.TP.range && predicted == currentClass) { // tp 
             histogramData[classIndex].data[binNum].tp[0].count += 1;
-          } else if (this.display.FN) { // fn 
+          } else if (this.display.FN.show) { // fn 
             histogramData[classIndex].data[binNum].fn[this.classValueToIndexMap[predicted]].count += 1;
           }
         } else {
-          if (this.display.FP && predicted == currentClass) { // fp 
+          if (this.display.FP.show && predicted == currentClass) { // fp 
             histogramData[classIndex].data[binNum].fp[this.classValueToIndexMap[target]].count += 1;
-          } else if (this.display.TN) { // tn
+          } else if (this.display.TN.show && score >= this.display.TN.range) { // tn
             histogramData[classIndex].data[binNum].tn[0].count += 1;
           }
         }
@@ -308,6 +267,7 @@ class PerformanceAnalysis extends LitElement {
         ${this.histogramData.map(
           d => html`
               <proba-histogram
+                .className=${d.className}
                 .data=${d.data}
                 .width=${this.width}
                 .height=${this.height}
@@ -321,13 +281,6 @@ class PerformanceAnalysis extends LitElement {
         )} 
         </div>
     `;
-    /*} else {
-      return html`
-        <label>Data File</label>
-        <input id="dataFile" type="file"></input>
-        <button @click=${this.readData}>Generate</button>
-      `
-    }*/
   }
 }
 

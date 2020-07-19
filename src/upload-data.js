@@ -11,6 +11,10 @@ class UploadData extends LitElement {
         this.showModal = true;
     }
 
+    toggleModal() {
+        this.showModal = !this.showModal;
+    }
+
     async readFile(file) {
         return new Promise((resolve, reject) => {
             if (file) {
@@ -43,13 +47,12 @@ class UploadData extends LitElement {
 
     render() {
         return html`
-            <app-modal .showModal=${this.showModal}>
+            <app-modal .showModal=${this.showModal} @modal-apply=${this.readData}>
                 <span slot="header-content">Upload Data</span>
                 <div slot="modal-body-content">
                     <label>Data File</label>
                     <input id="dataFile" type="file"></input>
                 </div>
-                <button slot="footer-content" @click=${this.readData}>Generate</button>
             </app-modal>
       `
     }

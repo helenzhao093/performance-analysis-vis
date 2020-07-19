@@ -48,7 +48,12 @@ class App extends LitElement {
 
     setDefaultSetting() {
         this.numBins = 3;
-        this.display = { TP: true, FP: true, TN: true, FN: true };
+        this.display = { 
+            TP: { show : true, range: 0.9 }, 
+            FP: { show : true }, 
+            TN: { show : true, range: 0.1 }, 
+            FN: { show : true }
+        };
         this.minScore = 0;
         this.maxScore = 1; 
     }
@@ -56,6 +61,7 @@ class App extends LitElement {
     handleUpload(event) {
         this.parsedData = event.detail.data;
         this.showHistogram = true;
+        this.shadowRoot.getElementById("upload").toggleModal();
     }
 
     updateSettings(event) {
@@ -66,32 +72,37 @@ class App extends LitElement {
     }
 
     toggleSettingsModal(event) {
-        console.log(event);
         let settings = this.shadowRoot.getElementById("settings");
         settings.toggleModal();
     }
 
+    toggleUpload(event) {
+        let upload = this.shadowRoot.getElementById("upload");
+        upload.toggleModal();
+    }
+
     render() {
         return html`
-        <div class='nav-bar'>
-            <span>Stacks</span>
-            <div style="padding-right:20px;">
-                <a @click=${this.toggleUpload}>Upload</a>
-                <a @click=${this.toggleSettingsModal}>Settings</a>
+            <div class='nav-bar'>
+                <span>Stacks</span>
+                <div style="padding-right:20px;">
+                    <a @click=${this.toggleUpload}>Upload</a>
+                    <a @click=${this.toggleSettingsModal}>Settings</a>
+                </div>
             </div>
-        </div>
 
-        <app-settings id="settings" @update-settings=${this.updateSettings}
-                        .numBins=${this.numBins} .display=${this.display} .maxScore=${this.maxScore} .minScore=${this.minScore}></app-settings>
-        <div class="main">
-            ${this.showHistogram ?
+            <app-settings id="settings" @update-settings=${this.updateSettings}
+                .numBins=${this.numBins} .display=${this.display} .maxScore=${this.maxScore} .minScore=${this.minScore}></app-settings>
+        
+            <upload-data id="upload" @uploaded="${this.handleUpload}"></upload-data>
+            <div class="main">
+                ${this.showHistogram ?
                 html`
                     <performance-analysis .parsedData=${this.parsedData}
                         .numBins=${this.numBins} .display=${this.display} .maxScore=${this.maxScore} .minScore=${this.minScore}>
                     </performance-analysis>` :
-
                 html`
-                    <upload-data @uploaded="${this.handleUpload}"></upload-data>
+                    
                 `
             }
         </div>
